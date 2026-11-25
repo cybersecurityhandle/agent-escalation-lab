@@ -6,10 +6,10 @@ A local lab that attacks an AI helpdesk agent holding real-looking identity perm
 flowchart LR
   mallory([Mallory, contractor]) -- ticket, KB page, tool update --> agent
   bob([Bob, employee]) -- chat --> agent
-  agent[HelpdeskCopilot<br/>LLM + tools + guards] -- token --> graph[fake-graph<br/>mock Entra ID / Graph]
-  agent -. hardened .-> sidecar[token sidecar<br/>holds the secret] --> graph
+  agent[HelpdeskCopilot<br/>LLM + tools + guards] -- token --> fg["fake-graph<br/>mock Entra ID / Graph"]
+  agent -. hardened .-> sidecar[token sidecar<br/>holds the secret] --> fg
   agent -- fetch, image, mail --> listener[attacker listener]
-  graph --> audit[(audit.jsonl)]
+  fg --> audit[(audit.jsonl)]
   agent --> trace[(agent_trace.jsonl)]
   audit & trace --> sigma[Sigma rules]
 ```

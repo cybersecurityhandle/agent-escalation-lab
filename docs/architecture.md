@@ -2,23 +2,23 @@
 
 ```mermaid
 flowchart TB
-  subgraph corp [network: corp, internal]
-    graph[fake-graph .5]
+  subgraph corp ["network: corp, internal"]
+    fg["fake-graph .5"]
     av[agent-vulnerable .10]
     ah[agent-hardened .11]
     at[attacker .66<br/>listener and launch point]
   end
-  subgraph idp [network: idp, internal]
+  subgraph idp ["network: idp, internal"]
     sc[token sidecar .12]
   end
-  subgraph side [network: sidecar, internal]
+  subgraph side ["network: sidecar, internal"]
     link[agent-hardened and sidecar only]
   end
-  av --> graph
-  ah --> graph
-  at --> graph
+  av --> fg
+  ah --> fg
+  at --> fg
   ah --- link --- sc
-  sc --> graph
+  sc --> fg
   av & ah --> at
 ```
 
