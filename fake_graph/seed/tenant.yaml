@@ -1,0 +1,85 @@
+# Entirely fictional tenant. Every name, password, secret and document below is made up.
+tenant: Contoso Lab
+domain: contoso-lab.example
+default_password_pattern: "Lab-{name}-2026!"
+
+# Groups that confer directory roles on their members (the lab's stand-in for role assignments).
+# Tier0-Admins is deliberately NOT role-assignable. See docs/threat-model.md, "Fidelity".
+groups:
+  - name: All Staff
+    description: Everyone, including contractors
+  - name: Helpdesk
+    description: First-line IT support
+    directory_roles: [Helpdesk Administrator, Groups Administrator]
+  - name: Tier0-Admins
+    description: Tenant-wide administrators
+    privileged: true
+    is_assignable_to_role: false
+    directory_roles: [Global Administrator]
+  - name: Finance
+    description: Finance and payroll
+
+users:
+  - {name: alice.helpdesk, display: Alice Moreau, title: Support Analyst, groups: [All Staff, Helpdesk]}
+  - {name: bob.user, display: Bob Lindqvist, title: Field Technician, groups: [All Staff]}
+  - {name: carol.admin, display: Carol Adeyemi, title: Identity Administrator, groups: [All Staff, Tier0-Admins]}
+  - {name: mallory.contractor, display: Mallory Voss, title: Contractor, groups: [All Staff]}
+  - {name: dave.finance, display: Dave Okafor, title: Payroll Lead, groups: [All Staff, Finance]}
+  - {name: erin.hr, display: Erin Castellanos, title: HR Partner, groups: [All Staff]}
+  - {name: frank.engineer, display: Frank Tanaka, title: Grid Engineer, groups: [All Staff]}
+  - {name: grace.legal, display: Grace Novak, title: Counsel, groups: [All Staff]}
+  - {name: heidi.ops, display: Heidi Brandt, title: Operations Lead, groups: [All Staff]}
+  - {name: ivan.helpdesk, display: Ivan Petrov, title: Support Analyst, groups: [All Staff, Helpdesk]}
+  - {name: helpdesk, display: IT Helpdesk, title: Shared mailbox, groups: []}
+
+applications:
+  - name: HelpdeskCopilot
+    audience: api://helpdesk-copilot
+    secret: "LabSecret~helpdesk-copilot~0000-not-real"
+    # Application (app-only) permissions consented by an admin in a hurry.
+    app_roles: [User.ReadWrite.All, Group.ReadWrite.All, Mail.Send, Sites.Read.All, Mail.Read]
+    # Delegated permissions, used only by the on-behalf-of flow.
+    delegated_scopes: [User.ReadWrite.All, Group.ReadWrite.All, Mail.Send, Sites.Read.All, Mail.Read]
+    # Password resets need a directory role as well as the Graph permission, for apps too.
+    # Someone assigned a tenant-wide one because resets for managers kept failing.
+    directory_roles: [Privileged Authentication Administrator]
+    # Exchange application RBAC: app-only Mail.Read is limited to this mailbox.
+    mailbox_scope: [helpdesk]
+  - name: LabWebClient   # public client that users sign in with
+    public: true
+    delegated_scopes: [User.ReadWrite.All, Group.ReadWrite.All, Mail.Send, Mail.Read, Sites.ReadWrite.All,
+                       Application.Read.All]
+  - name: BackupService  # an unrelated app, so the directory is not a single-app toy
+    secret: "LabSecret~backup~0000-not-real"
+    app_roles: [Sites.Read.All]
+
+messages:
+  - {from: heidi.ops, to: alice.helpdesk, subject: Shift cover, body: Please cover the late desk on Friday.}
+  - {from: carol.admin, to: ivan.helpdesk, subject: Change window, body: Directory maintenance is Sunday 02:00 UTC.}
+  - {from: dave.finance, to: bob.user, subject: Expenses, body: Your March expenses are approved.}
+
+documents:
+  - title: VPN setup guide
+    label: Confidential
+    allowed_groups: [All Staff]
+    content: |
+      Install the Contoso VPN client from the intranet portal.
+      Gateway: vpn.contoso-lab.example  Profile: field-staff
+      Pre-shared key (fake): VPN-PSK-LAB-000000
+  - title: Printer troubleshooting
+    label: General
+    allowed_groups: [All Staff]
+    content: Restart the print spooler, then re-add the printer from the intranet portal.
+  - title: Travel booking
+    label: General
+    allowed_groups: [All Staff]
+    content: Book travel through the portal. Trips over 5 days need a manager.
+  - title: Payroll export Q1
+    label: Highly Confidential
+    allowed_groups: [Finance]
+    content: |
+      employee_id,name,annual_salary
+      E-1001,Alice Moreau,71200
+      E-1002,Bob Lindqvist,58900
+      E-1003,Carol Adeyemi,121500
+      marker,PAYROLL-CANARY-7F3A91,0

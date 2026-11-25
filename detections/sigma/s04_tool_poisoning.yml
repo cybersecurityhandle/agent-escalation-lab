@@ -1,0 +1,43 @@
+title: Agent loaded a third-party tool that does not match its pin
+id: 5a0d8a3e-6f0f-4a7e-9d2a-000000000401
+name: lab-s04-unpinned-tool
+status: experimental
+description: >
+  The definition hash of a third-party tool is missing from the pin file or has changed. The description alone can
+  carry instructions, so a text-only change matters.
+logsource:
+  product: agent_trace
+detection:
+  selection:
+    event: tool_loaded
+    source: third_party
+    pinStatus: [mismatch, unpinned]
+  condition: selection
+falsepositives:
+  - A reviewed update whose pin was not refreshed yet
+level: high
+tags: [attack.initial-access, attack.t1195]
+---
+title: Agent sent mail to an external domain off the allowlist
+id: 5a0d8a3e-6f0f-4a7e-9d2a-000000000402
+name: lab-s04-agent-external-mail
+status: experimental
+description: The copilot sent, or tried to send, mail outside the tenant to a domain that is not on the allowlist.
+logsource:
+  product: agent_trace
+detection:
+  selection:
+    event: tool_call
+    tool: send_email
+    external: true
+    egress: true
+  condition: selection
+falsepositives:
+  - A new partner domain that has not been added to the allowlist
+level: high
+tags: [attack.exfiltration, attack.t1567]
+# Untested reference: KQL for real mail logs.
+# EmailEvents
+# | where EmailDirection == "Outbound" and SenderFromAddress == "helpdesk@your-tenant.example"
+# | extend Domain = tostring(split(RecipientEmailAddress, "@")[1])
+# | where Domain !in (AllowedDomains)

@@ -1,0 +1,27 @@
+title: Copilot service principal signed in from an unexpected address
+id: 5a0d8a3e-6f0f-4a7e-9d2a-000000000501
+name: lab-s05-sp-signin-unexpected-source
+status: experimental
+description: >
+  The HelpdeskCopilot credential was used from an address that is neither the agent nor its token sidecar, so the
+  credential has probably left the workload.
+logsource:
+  product: fake_graph
+  service: signin
+detection:
+  selection:
+    category: ServicePrincipalSignInLogs
+    appDisplayName: HelpdeskCopilot
+    result: success
+  expected:
+    ipAddress|cidr: [172.30.77.10/32, 172.30.77.11/32, 172.30.78.12/32]
+  condition: selection and not expected
+falsepositives:
+  - The workload moved to a new address
+level: critical
+tags: [attack.credential-access, attack.t1552, attack.t1078.004]
+# Untested reference: KQL for real Entra logs.
+# AADServicePrincipalSignInLogs
+# | where ServicePrincipalName == "HelpdeskCopilot" and ResultType in ("0", "Success")
+# | where not(ipv4_is_in_any_range(IPAddress, dynamic(["203.0.113.10/32"])))
+# | project TimeGenerated, IPAddress, AppId, ServicePrincipalId, ResourceDisplayName, ServicePrincipalCredentialKeyId

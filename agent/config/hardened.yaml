@@ -1,0 +1,11 @@
+# The same copilot with every control on. Each one can be toggled on its own (see `--only` and `--disable`).
+mode: hardened
+controls:
+  delegated_auth: true          # act on behalf of the requester, never app-only
+  least_privilege_scopes: true  # no Group.ReadWrite.All; group changes go to an approval queue
+  human_approval: true          # resets, group changes and external mail need a person
+  spotlighting: true            # untrusted content is marked as data (reduces risk, does not remove it)
+  egress_allowlist: true        # fetches and external mail only to listed domains
+  tool_pinning: true            # third-party tool definitions must match a pinned hash
+  secret_isolation: true        # client secret lives in a sidecar, not in the agent
+  policy_engine: true           # every tool call is authorized by a Cedar policy

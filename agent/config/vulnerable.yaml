@@ -1,0 +1,11 @@
+# How the copilot was first deployed: app-only permissions, raw content in the prompt, no checks.
+mode: vulnerable
+controls:
+  delegated_auth: false
+  least_privilege_scopes: false
+  human_approval: false
+  spotlighting: false
+  egress_allowlist: false
+  tool_pinning: false
+  secret_isolation: false
+  policy_engine: false

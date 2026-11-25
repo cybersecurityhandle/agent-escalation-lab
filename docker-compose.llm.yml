@@ -1,0 +1,13 @@
+# Added only for LLM=anthropic or LLM=ollama. Gives the two agents, and nothing else, a route out.
+services:
+  agent-vulnerable: &llm
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    networks: {llm: {}}
+  agent-hardened: *llm
+
+networks:
+  llm: {}

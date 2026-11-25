@@ -1,0 +1,31 @@
+title: Privileged group membership added by a service principal
+id: 5a0d8a3e-6f0f-4a7e-9d2a-000000000101
+name: lab-s01-priv-group-add-by-sp
+status: experimental
+description: >
+  An app-only actor added a member to a privileged group. Nobody was signed in, so there is no user to ask.
+  Tier 0 membership should change through PIM or a named administrator.
+logsource:
+  product: fake_graph
+  service: audit
+detection:
+  selection:
+    activityDisplayName: Add member to group
+    authType: app
+    targetPrivileged: true
+    result: success
+  condition: selection
+falsepositives:
+  - An approved provisioning app that manages privileged groups (exclude it by appId)
+level: critical
+tags: [attack.persistence, attack.privilege-escalation, attack.t1098]
+# Untested reference: KQL for real Entra logs. Entra does not mark targets as privileged, so use a watchlist.
+# let Tier0Groups = _GetWatchlist('Tier0Groups') | project GroupId = tostring(SearchKey);
+# AuditLogs
+# | where OperationName == "Add member to group" and Result == "success"
+# | where isnotempty(tostring(InitiatedBy.app.servicePrincipalId))
+# | mv-expand Target = TargetResources
+# | mv-expand Prop = Target.modifiedProperties
+# | where tostring(Prop.displayName) == "Group.ObjectID"
+# | extend GroupId = trim('"', tostring(Prop.newValue))
+# | where GroupId in (Tier0Groups)

@@ -1,0 +1,53 @@
+title: Agent read a sensitive document
+id: 5a0d8a3e-6f0f-4a7e-9d2a-000000000201
+name: lab-s02-base-sensitive-read
+status: experimental
+description: Building block for lab-s02-exfil-after-sensitive-read. Not an alert by itself.
+logsource:
+  product: agent_trace
+detection:
+  selection:
+    event: tool_call
+    outcome: ok
+    sensitive: true
+  condition: selection
+level: informational
+---
+title: Agent contacted a destination off the allowlist
+id: 5a0d8a3e-6f0f-4a7e-9d2a-000000000202
+name: lab-s02-base-off-allowlist
+status: experimental
+description: >
+  Building block. `egress` is true when a destination is off the allowlist, whether or not the control blocked it,
+  so attempts are visible too.
+logsource:
+  product: agent_trace
+detection:
+  selection:
+    event: tool_call
+    tool: [fetch_url, render_image]
+    egress: true
+  condition: selection
+level: informational
+---
+title: Agent contacted an unknown destination after reading a sensitive document
+id: 5a0d8a3e-6f0f-4a7e-9d2a-000000000203
+name: lab-s02-exfil-after-sensitive-read
+status: experimental
+description: >
+  In one agent session, a sensitive document was read and then a URL off the allowlist was fetched, or an image from
+  it was rendered. Matches the markdown image technique and the fetch tool technique.
+correlation:
+  type: temporal_ordered
+  rules: [lab-s02-base-sensitive-read, lab-s02-base-off-allowlist]
+  group-by: [correlationId]
+  timespan: 5m
+falsepositives:
+  - Documentation that embeds images from a legitimate host missing from the allowlist
+level: high
+tags: [attack.exfiltration, attack.t1567]
+# Untested reference: the file access half in real M365 logs.
+# OfficeActivity
+# | where Operation in ("FileAccessed", "FileDownloaded") and isnotempty(tostring(AppId))
+# | join kind=inner (CopilotOutboundLogs_CL) on $left.CorrelationId == $right.SessionId   // your own agent telemetry
+# There is no Entra table for what an agent fetches: this needs agent or proxy telemetry.

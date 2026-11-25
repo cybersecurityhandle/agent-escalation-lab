@@ -1,0 +1,9 @@
+name: timezone_helper
+description: Returns the current local time in a city.
+parameters:
+  type: object
+  properties:
+    city: {type: string, description: City name}
+  required: [city]
+  additionalProperties: false
+implementation: timezone

@@ -1,0 +1,105 @@
+# No port is published and every network is internal, so nothing here can reach the internet or be reached from it.
+# Using a hosted or host-side model is the one exception: docker-compose.llm.yml gives the agents a way out.
+name: agent-escalation-lab
+
+x-service: &service
+  image: agent-escalation-lab:local
+  user: "${LAB_UID:-1000}:${LAB_GID:-1000}"
+  read_only: true
+  tmpfs: [/tmp]
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  restart: "no"
+
+x-lab-key: &lab-key
+  LAB_ADMIN_KEY: ${LAB_ADMIN_KEY:-local-lab-key}  # referee key for reset and ground truth, not part of the attack
+  LAB_DATA: /data
+
+x-copilot: &copilot
+  COPILOT_CLIENT_ID: 278e40f9-bfd3-55c0-9820-6943e2cfce31
+  COPILOT_GRAPH_URL: http://fake-graph:8000
+
+services:
+  fake-graph:
+    <<: *service
+    build: .
+    command: uvicorn --factory fake_graph.app:from_env --host 0.0.0.0 --port 8000 --no-proxy-headers --log-level warning
+    environment:
+      <<: *lab-key
+      MAIL_RELAY_URL: http://attacker:9000/smtp
+    volumes: ["./runs:/data"]
+    networks:
+      corp: {ipv4_address: 172.30.77.5, aliases: [intranet.contoso-lab.example]}
+      idp: {ipv4_address: 172.30.78.5}
+    healthcheck: &health
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/healthz', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  sidecar:  # holds the client secret for the hardened agent
+    <<: *service
+    command: uvicorn --factory agent.sidecar:from_env --host 0.0.0.0 --port 8002 --no-proxy-headers --log-level warning
+    environment:
+      <<: *copilot
+      COPILOT_CLIENT_SECRET: "LabSecret~helpdesk-copilot~0000-not-real"
+      SIDECAR_ALLOWED_IPS: 172.30.79.11
+    networks:
+      idp: {ipv4_address: 172.30.78.12}
+      sidecar: {ipv4_address: 172.30.79.12}
+    healthcheck:
+      <<: *health
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8002/healthz', timeout=2)"]
+    depends_on: {fake-graph: {condition: service_healthy}}
+
+  agent-vulnerable:
+    <<: *service
+    command: &agent uvicorn --factory agent.main:from_env --host 0.0.0.0 --port 8001 --no-proxy-headers --log-level warning
+    environment:
+      <<: [*lab-key, *copilot]
+      LAB_MODE: vulnerable
+      COPILOT_CLIENT_SECRET: "LabSecret~helpdesk-copilot~0000-not-real"
+    volumes: ["./runs:/data"]
+    networks:
+      corp: {ipv4_address: 172.30.77.10}
+    healthcheck: &agent-health
+      <<: *health
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8001/healthz', timeout=2)"]
+    depends_on: {fake-graph: {condition: service_healthy}}
+
+  agent-hardened:
+    <<: *service
+    command: *agent
+    environment:
+      <<: [*lab-key, *copilot]
+      LAB_MODE: hardened
+      COPILOT_SIDECAR_URL: http://sidecar:8002
+    volumes: ["./runs:/data"]
+    networks:
+      corp: {ipv4_address: 172.30.77.11}
+      sidecar: {ipv4_address: 172.30.79.11}
+    healthcheck: *agent-health
+    depends_on: {sidecar: {condition: service_healthy}}
+
+  attacker:  # listener, and the machine scenarios are launched from
+    <<: *service
+    command: uvicorn --factory attacker.listener:from_env --host 0.0.0.0 --port 9000 --no-proxy-headers --log-level warning
+    environment: *lab-key
+    volumes: ["./runs:/data"]
+    networks:
+      corp: {ipv4_address: 172.30.77.66, aliases: [cdn.attacker.example]}
+    healthcheck:
+      <<: *health
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:9000/healthz', timeout=2)"]
+    depends_on: {fake-graph: {condition: service_healthy}}
+
+networks:
+  corp:
+    internal: true
+    ipam: {config: [{subnet: 172.30.77.0/24}]}
+  idp:
+    internal: true
+    ipam: {config: [{subnet: 172.30.78.0/24}]}
+  sidecar:
+    internal: true
+    ipam: {config: [{subnet: 172.30.79.0/24}]}

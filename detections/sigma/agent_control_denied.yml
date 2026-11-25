@@ -1,0 +1,18 @@
+title: A control stopped an agent tool call
+id: 5a0d8a3e-6f0f-4a7e-9d2a-000000000901
+name: lab-agent-control-denied
+status: experimental
+description: >
+  A guard, the approval step or the directory refused something the agent tried to do. One is worth a look, a burst is
+  worth an incident. This is what an attack looks like when the hardened configuration works.
+logsource:
+  product: agent_trace
+detection:
+  selection:
+    event: [tool_call, tool_loaded]
+    outcome: [denied, queued]
+  condition: selection
+falsepositives:
+  - Employees asking for something they may not do
+level: medium
+tags: [attack.privilege-escalation]

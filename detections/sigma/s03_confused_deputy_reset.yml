@@ -1,0 +1,82 @@
+title: App identity reset the password of a privileged user
+id: 5a0d8a3e-6f0f-4a7e-9d2a-000000000301
+name: lab-s03-base-app-reset-privileged
+status: experimental
+description: Building block for lab-s03-confused-deputy-reset.
+logsource:
+  product: fake_graph
+  service: audit
+detection:
+  selection:
+    activityDisplayName: Reset user password
+    authType: app
+    targetPrivileged: true
+    result: success
+  condition: selection
+level: informational
+---
+title: Agent reset a password for a requester who is not a tier 0 admin
+id: 5a0d8a3e-6f0f-4a7e-9d2a-000000000302
+name: lab-s03-base-reset-for-non-tier0
+status: experimental
+description: >
+  Building block. The audit log names only the app, so the requester has to come from the agent trace. Helpdesk is not
+  excluded: Helpdesk may reset ordinary users, not administrators.
+logsource:
+  product: agent_trace
+detection:
+  selection:
+    event: tool_call
+    tool: reset_password
+    outcome: ok
+  authorized:
+    requester.groups: Tier0-Admins
+  condition: selection and not authorized
+level: informational
+---
+title: Agent reset a password for a requester outside IT
+id: 5a0d8a3e-6f0f-4a7e-9d2a-000000000304
+name: lab-s03-reset-for-non-it
+status: experimental
+description: >
+  Someone who is neither Helpdesk nor tier 0 got the agent to reset a password, for any target. The confused deputy
+  works on ordinary accounts too, only with less impact.
+logsource:
+  product: agent_trace
+detection:
+  selection:
+    event: tool_call
+    tool: reset_password
+    outcome: ok
+  authorized:
+    requester.groups: [Helpdesk, Tier0-Admins]
+  condition: selection and not authorized
+falsepositives:
+  - Self-service resets, if the agent is ever allowed to do them
+level: high
+tags: [attack.persistence, attack.t1098]
+---
+title: Privileged password reset by an app on behalf of a non-admin
+id: 5a0d8a3e-6f0f-4a7e-9d2a-000000000303
+name: lab-s03-confused-deputy-reset
+status: experimental
+description: >
+  Joins the directory audit log (the app reset a privileged user's password) with the agent trace (the person asking
+  was not tier 0) on the client request id. Neither log shows the problem alone.
+correlation:
+  type: temporal
+  rules: [lab-s03-base-app-reset-privileged, lab-s03-base-reset-for-non-tier0]
+  group-by: [correlationId]
+  timespan: 5m
+falsepositives:
+  - Break-glass automation that resets privileged passwords by design
+level: critical
+tags: [attack.privilege-escalation, attack.persistence, attack.t1098, attack.t1078]
+# Untested reference: KQL for real Entra logs. Use a watchlist for tier 0 users.
+# let Tier0Users = _GetWatchlist('Tier0Users') | project UserId = tostring(SearchKey);
+# AuditLogs
+# | where OperationName has "Reset" and OperationName has "password" and Result == "success"
+# | where isnotempty(tostring(InitiatedBy.app.servicePrincipalId))
+# | mv-expand Target = TargetResources
+# | where tostring(Target.id) in (Tier0Users)
+# | project TimeGenerated, OperationName, InitiatedBy, Target, CorrelationId
